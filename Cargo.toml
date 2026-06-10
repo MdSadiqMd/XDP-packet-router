@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "tools"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/user/xdp-packet-router"
+
+[workspace.dependencies]
+aya = { git = "https://github.com/aya-rs/aya", default-features = false }
+aya-build = { git = "https://github.com/aya-rs/aya", default-features = false }
+aya-ebpf = { git = "https://github.com/aya-rs/aya", default-features = false }
+aya-log = { git = "https://github.com/aya-rs/aya", default-features = false }
+aya-log-ebpf = { git = "https://github.com/aya-rs/aya", default-features = false }
+
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+env_logger = "0.11"
+libc = "0.2"
+log = "0.4"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+network-types = "0.2"
+
+[profile.release]
+lto = true
+panic = "abort"
+
+[profile.release.package.pshred-ebpf]
+debug = 2
+codegen-units = 1
+opt-level = "z"
+strip = false
