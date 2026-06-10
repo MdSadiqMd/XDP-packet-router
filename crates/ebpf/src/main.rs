@@ -10,7 +10,7 @@ use aya_ebpf::{
     programs::XdpContext,
 };
 use network_types::{eth::EthHdr, ip::Ipv4Hdr, udp::UdpHdr};
-use pshred_protocol::{ProposerStats, RouterConfig, MAX_PROPOSERS};
+use pshred_protocol::{MAX_PROPOSERS, ProposerStats, RouterConfig};
 
 const ETH_P_IP: u16 = 0x0800;
 const IPPROTO_UDP: u8 = 17;
@@ -46,14 +46,12 @@ fn process_packet(ctx: &XdpContext) -> Result<u32, ()> {
 
     let eth = ptr_at::<EthHdr>(ctx, 0)?;
     let ether_type = unsafe { u16::from_be((*eth).ether_type) };
-    
     if ether_type != ETH_P_IP {
         return Ok(xdp_action::XDP_PASS);
     }
 
     let ip = ptr_at::<Ipv4Hdr>(ctx, EthHdr::LEN)?;
     let proto = unsafe { (*ip).proto };
-
     if proto != IPPROTO_UDP {
         return Ok(xdp_action::XDP_PASS);
     }

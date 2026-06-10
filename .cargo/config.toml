@@ -1,8 +1,9 @@
-[alias]
-xtask = "run --package pshred-tools --bin xtask --"
-
-[build]
-target-dir = "target"
+# Cargo configuration for XDP Packet Router
+#
+# The eBPF crates require Linux to build. On macOS, rust-analyzer will show
+# errors for the loader crate because the build script can't run.
 
 [env]
-RUST_BACKTRACE = "1"
+# Set a dummy OUT_DIR for rust-analyzer on non-Linux systems
+# This prevents "OUT_DIR not set" errors in the IDE
+AYA_BUILD_SKIP = { value = "true", force = false }
