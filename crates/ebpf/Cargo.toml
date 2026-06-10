@@ -1,0 +1,16 @@
+[package]
+name = "pshred-ebpf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "XDP eBPF program for pshred packet demultiplexing"
+
+[dependencies]
+aya-ebpf.workspace = true
+# aya-log-ebpf.workspace = true  # disabled for debugging
+network-types.workspace = true
+pshred-protocol = { path = "../protocol" }
+
+[[bin]]
+name = "pshred-router"
+path = "src/main.rs"
