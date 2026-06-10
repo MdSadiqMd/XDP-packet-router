@@ -1,0 +1,29 @@
+[package]
+name = "pshred-loader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Userspace loader for the pshred XDP router"
+
+[dependencies]
+aya.workspace = true
+aya-log.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+env_logger.workspace = true
+libc.workspace = true
+log.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+pshred-protocol = { path = "../protocol", features = ["std"] }
+
+[build-dependencies]
+aya-build.workspace = true
+
+[[bin]]
+name = "pshred-loader"
+path = "src/main.rs"
+
+[[bin]]
+name = "test-sender"
+path = "src/bin/test-sender.rs"
