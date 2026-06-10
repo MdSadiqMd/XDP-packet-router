@@ -1,0 +1,8 @@
+[alias]
+xtask = "run --package pshred-tools --bin xtask --"
+
+[build]
+target-dir = "target"
+
+[env]
+RUST_BACKTRACE = "1"
