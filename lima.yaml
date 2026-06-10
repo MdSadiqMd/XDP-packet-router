@@ -1,0 +1,90 @@
+# Lima VM configuration for XDP/eBPF development
+# Usage: limactl create --name=xdp ./lima.yaml && limactl start xdp
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+
+cpus: 4
+memory: "8GiB"
+disk: "50GiB"
+
+mounts:
+  - location: "~"
+    writable: true
+  - location: "/tmp/lima"
+    writable: true
+
+containerd:
+  system: false
+  user: false
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+
+      apt-get update
+      apt-get install -y \
+        build-essential \
+        clang \
+        llvm \
+        lld \
+        llvm-dev \
+        llvm-runtime \
+        libelf-dev \
+        linux-headers-$(uname -r) \
+        iproute2 \
+        bpftool \
+        pkg-config \
+        git \
+        curl \
+        tcpdump \
+        net-tools
+
+  - mode: user
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+
+      if [ ! -d "$HOME/.cargo" ]; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      fi
+
+      source "$HOME/.cargo/env"
+
+      rustup toolchain install nightly
+      rustup component add rust-src --toolchain nightly
+      rustup default nightly
+
+      if ! command -v bpf-linker &> /dev/null; then
+        cargo install bpf-linker
+      fi
+
+      echo 'source "$HOME/.cargo/env"' >> ~/.bashrc
+
+probes:
+  - script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 30s bash -c "until command -v bpf-linker &> /dev/null; do sleep 3; done"; then
+        echo >&2 "bpf-linker is not installed yet"
+        exit 1
+      fi
+    hint: See "/var/log/cloud-init-output.log" in the guest
+
+message: |
+  XDP development VM is ready!
+
+  To enter the VM:
+    limactl shell xdp
+
+  Your project is at:
+    /Users/sadiq/Developer/XDP-packet-router
+
+  To build and run:
+    cd /Users/sadiq/Developer/XDP-packet-router
+    cargo build --release -p pshred-loader
+    sudo ./target/release/pshred-loader -i lima0 -p 8001
