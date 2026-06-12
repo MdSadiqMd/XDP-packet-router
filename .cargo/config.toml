@@ -3,7 +3,5 @@
 # The eBPF crates require Linux to build. On macOS, rust-analyzer will show
 # errors for the loader crate because the build script can't run.
 
-[env]
-# Set a dummy OUT_DIR for rust-analyzer on non-Linux systems
-# This prevents "OUT_DIR not set" errors in the IDE
-AYA_BUILD_SKIP = { value = "true", force = false }
+# Note: AYA_BUILD_SKIP is handled by the build.rs with #[cfg(target_os)]
+# No env vars needed here - the build script creates a stub on non-Linux

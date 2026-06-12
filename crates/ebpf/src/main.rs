@@ -6,7 +6,7 @@ use core::mem;
 use aya_ebpf::{
     bindings::xdp_action,
     macros::{map, xdp},
-    maps::{Array, PerCpuArray},
+    maps::{Array, DevMap, PerCpuArray},
     programs::XdpContext,
 };
 use network_types::{eth::EthHdr, ip::Ipv4Hdr, udp::UdpHdr};
@@ -22,12 +22,20 @@ static CONFIG: Array<RouterConfig> = Array::with_max_entries(1, 0);
 static PROPOSER_STATS: PerCpuArray<ProposerStats> = PerCpuArray::with_max_entries(MAX_PROPOSERS, 0);
 
 #[map]
-static COUNTERS: PerCpuArray<u64> = PerCpuArray::with_max_entries(4, 0);
+static COUNTERS: PerCpuArray<u64> = PerCpuArray::with_max_entries(8, 0);
+
+/// DevMap for redirecting packets to different interfaces based on proposer_index.
+/// Each entry maps a proposer slot (0..MAX_PROPOSERS) to a network interface index.
+/// If an entry is not set, the packet will be passed to the kernel stack.
+#[map]
+static REDIRECT_MAP: DevMap = DevMap::with_max_entries(MAX_PROPOSERS, 0);
 
 const IDX_TOTAL: u32 = 0;
 const IDX_UDP_MATCHED: u32 = 1;
 const IDX_PSHRED_PARSED: u32 = 2;
-const IDX_ERRORS: u32 = 3;
+const IDX_REDIRECTED: u32 = 3;
+const IDX_PASSED: u32 = 4;
+const IDX_ERRORS: u32 = 5;
 
 #[xdp]
 pub fn pshred_router(ctx: XdpContext) -> u32 {
@@ -77,9 +85,22 @@ fn process_packet(ctx: &XdpContext) -> Result<u32, ()> {
     increment_counter(IDX_PSHRED_PARSED);
 
     let packet_len = (ctx.data_end() - ctx.data()) as u64;
-    update_proposer_stats(proposer_index, packet_len);
+    let slot = proposer_index % MAX_PROPOSERS;
+    update_proposer_stats(slot, packet_len);
 
-    Ok(xdp_action::XDP_PASS)
+    // Try to redirect to the interface mapped to this proposer
+    // If redirect succeeds, return XDP_REDIRECT; otherwise fall back to XDP_PASS
+    match REDIRECT_MAP.redirect(slot, xdp_action::XDP_PASS as u64) {
+        Ok(action) => {
+            increment_counter(IDX_REDIRECTED);
+            Ok(action)
+        }
+        Err(_) => {
+            // No redirect target configured for this proposer, pass to kernel
+            increment_counter(IDX_PASSED);
+            Ok(xdp_action::XDP_PASS)
+        }
+    }
 }
 
 #[inline(always)]
@@ -121,11 +142,11 @@ fn update_proposer_stats(proposer_index: u32, packet_len: u64) {
     }
 }
 
-// #[cfg(not(test))]
-// #[panic_handler]
-// fn panic(_info: &core::panic::PanicInfo) -> ! {
-//     loop {}
-// }
+#[cfg(not(test))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
 
 #[unsafe(link_section = "license")]
 #[unsafe(no_mangle)]
